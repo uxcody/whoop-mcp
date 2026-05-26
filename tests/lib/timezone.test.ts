@@ -1,5 +1,12 @@
-import { describe, it, expect } from "vitest";
-import { isUtcIso, toLocalIso, localizeTimestamps } from "../../src/lib/timezone.js";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import {
+  isUtcIso,
+  toLocalIso,
+  localizeTimestamps,
+  getTimezone,
+  setProfileTimezone,
+  getProfileTimezone,
+} from "../../src/lib/timezone.js";
 
 describe("isUtcIso", () => {
   it("matches second-precision UTC ISO", () => {
@@ -109,5 +116,75 @@ describe("localizeTimestamps", () => {
   it("converts a top-level UTC string", () => {
     expect(localizeTimestamps("2026-05-25T22:30:00Z", "America/Los_Angeles"))
       .toBe("2026-05-25T15:30:00-07:00");
+  });
+});
+
+describe("toLocalIso with fixed offset (Whoop profile.timezone_offset form)", () => {
+  it("accepts Whoop's 4-digit offset format '-0700'", () => {
+    expect(toLocalIso("2026-05-25T22:30:00Z", "-0700"))
+      .toBe("2026-05-25T15:30:00-07:00");
+  });
+
+  it("accepts standard ISO offset format '-07:00'", () => {
+    expect(toLocalIso("2026-05-25T22:30:00Z", "-07:00"))
+      .toBe("2026-05-25T15:30:00-07:00");
+  });
+
+  it("accepts positive offset '+0900' (Asia/Tokyo)", () => {
+    expect(toLocalIso("2026-05-25T22:30:00Z", "+0900"))
+      .toBe("2026-05-26T07:30:00+09:00");
+  });
+
+  it("accepts UTC offset '+0000'", () => {
+    expect(toLocalIso("2026-05-25T22:30:00Z", "+0000"))
+      .toBe("2026-05-25T22:30:00+00:00");
+  });
+
+  it("preserves millisecond precision with fixed offset", () => {
+    expect(toLocalIso("2026-05-25T22:30:00.456Z", "-0700"))
+      .toBe("2026-05-25T15:30:00.456-07:00");
+  });
+
+  it("handles half-hour offsets like Newfoundland (-0330)", () => {
+    expect(toLocalIso("2026-05-25T22:30:00Z", "-0330"))
+      .toBe("2026-05-25T19:00:00-03:30");
+  });
+});
+
+describe("getTimezone priority chain", () => {
+  let originalEnv: string | undefined;
+  let originalCached: string | null;
+
+  beforeEach(() => {
+    originalEnv = process.env.WHOOP_TIMEZONE;
+    originalCached = getProfileTimezone();
+    delete process.env.WHOOP_TIMEZONE;
+    setProfileTimezone(null);
+  });
+
+  afterEach(() => {
+    if (originalEnv === undefined) delete process.env.WHOOP_TIMEZONE;
+    else process.env.WHOOP_TIMEZONE = originalEnv;
+    setProfileTimezone(originalCached);
+  });
+
+  it("WHOOP_TIMEZONE env var wins over profile cache", () => {
+    process.env.WHOOP_TIMEZONE = "America/New_York";
+    setProfileTimezone("-0700");
+    expect(getTimezone()).toBe("America/New_York");
+  });
+
+  it("profile cache wins over system TZ when env var unset", () => {
+    setProfileTimezone("-0700");
+    expect(getTimezone()).toBe("-0700");
+  });
+
+  it("falls back to system TZ when env var unset and profile not cached", () => {
+    // Don't assert exact system TZ (varies by CI host) — just confirm it
+    // returns SOMETHING valid and not our cached/env values.
+    const tz = getTimezone();
+    expect(typeof tz).toBe("string");
+    expect(tz.length).toBeGreaterThan(0);
+    expect(tz).not.toBe("-0700");
   });
 });

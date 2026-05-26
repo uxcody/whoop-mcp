@@ -12,6 +12,7 @@ import { WhoopClient } from "./whoop/client.js";
 import { TokenManager } from "./whoop/token_manager.js";
 import { EnvFileTokenStore, MemoryTokenStore, type TokenStore } from "./whoop/token_store.js";
 import { registerTools } from "./tools/register.js";
+import { startTimezoneAutoDetect } from "./whoop/init_timezone.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ENV_PATH = resolve(__dirname, "../.env");
@@ -38,6 +39,12 @@ async function main(): Promise<void> {
   });
 
   const client = new WhoopClient({ getToken: () => tokenManager.getToken() });
+
+  // Tier 2 of the timezone resolution chain: auto-detect from Whoop's profile
+  // so responses come back in the user's local TZ without manual config.
+  // No-op if WHOOP_TIMEZONE is set (env var wins). Fires async — does not
+  // block server startup.
+  startTimezoneAutoDetect(client);
 
   const transport = (process.env.MCP_TRANSPORT ?? "stdio").toLowerCase();
 

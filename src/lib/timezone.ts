@@ -18,13 +18,47 @@
 // pass through unchanged — only "*Z" UTC timestamps are converted.
 
 const UTC_ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
+// Matches both Whoop's "+0000"/"-0700" form and standard "+00:00"/"-07:00" form.
+const FIXED_OFFSET_RE = /^([+-])(\d{2}):?(\d{2})$/;
 
+// Module-level cache populated by `setProfileTimezone()` at server boot. This
+// is Tier 2 of the priority chain — for users who didn't set `WHOOP_TIMEZONE`
+// explicitly, we auto-detect from their Whoop profile's `timezone_offset`
+// (which their phone keeps current).
+let cachedProfileTz: string | null = null;
+
+export function setProfileTimezone(tzOrOffset: string | null): void {
+  cachedProfileTz = tzOrOffset;
+}
+
+export function getProfileTimezone(): string | null {
+  return cachedProfileTz;
+}
+
+/**
+ * Resolves the timezone the server should use for outgoing timestamps.
+ *
+ * Priority chain:
+ *   1. WHOOP_TIMEZONE env var (IANA name, explicit override)
+ *   2. Cached profile offset (auto-detected from Whoop, e.g. "-0700")
+ *   3. Server's system timezone (Intl default — UTC inside Docker / Fly)
+ */
 export function getTimezone(): string {
-  return process.env.WHOOP_TIMEZONE ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return (
+    process.env.WHOOP_TIMEZONE
+    ?? cachedProfileTz
+    ?? Intl.DateTimeFormat().resolvedOptions().timeZone
+  );
 }
 
 export function isUtcIso(s: string): boolean {
   return UTC_ISO_RE.test(s);
+}
+
+function parseFixedOffset(s: string): { sign: "+" | "-"; hh: string; mm: string } | null {
+  const m = s.match(FIXED_OFFSET_RE);
+  if (!m) return null;
+  return { sign: m[1] as "+" | "-", hh: m[2]!, mm: m[3]! };
 }
 
 /**
@@ -40,6 +74,27 @@ export function toLocalIso(utcIso: string, tz: string = getTimezone()): string {
   const date = new Date(utcIso);
   if (Number.isNaN(date.getTime())) return utcIso;
 
+  // Fixed-offset TZ ("-0700" or "-07:00") — Whoop's profile.timezone_offset uses
+  // this form. Intl.DateTimeFormat only accepts IANA names, so we shift the
+  // instant by the offset and format manually.
+  const fixedOffset = parseFixedOffset(tz);
+  if (fixedOffset) {
+    const offsetMin = (Number(fixedOffset.hh) * 60 + Number(fixedOffset.mm))
+      * (fixedOffset.sign === "+" ? 1 : -1);
+    const shifted = new Date(date.getTime() + offsetMin * 60 * 1000);
+    const pad = (n: number, w = 2): string => String(n).padStart(w, "0");
+    const Y = shifted.getUTCFullYear();
+    const M = pad(shifted.getUTCMonth() + 1);
+    const D = pad(shifted.getUTCDate());
+    const h = pad(shifted.getUTCHours());
+    const m = pad(shifted.getUTCMinutes());
+    const s = pad(shifted.getUTCSeconds());
+    const msMatch = utcIso.match(/\.(\d+)Z$/);
+    const fraction = msMatch ? `.${msMatch[1]}` : "";
+    return `${Y}-${M}-${D}T${h}:${m}:${s}${fraction}${fixedOffset.sign}${fixedOffset.hh}:${fixedOffset.mm}`;
+  }
+
+  // IANA name path — uses Intl.DateTimeFormat which knows about DST transitions.
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: tz,
     year: "numeric",
