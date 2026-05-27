@@ -7,18 +7,11 @@
 </p>
 
 <p align="center">
-  <a href="#quickstart-5-minutes"><img src="https://img.shields.io/badge/Quick_Start-3b82f6?style=for-the-badge&logo=lightning&logoColor=white" alt="quick start"></a>
-  <a href="#table-of-contents"><img src="https://img.shields.io/badge/Docs-4b5563?style=for-the-badge" alt="docs"></a>
-  <a href="WHOOP_API_ENDPOINTS.md"><img src="https://img.shields.io/badge/API_Reference-374151?style=for-the-badge" alt="api reference"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-eab308?style=for-the-badge" alt="MIT license"></a>
-</p>
-
-<p align="center">
   <a href="#remote-hosting"><img src="https://img.shields.io/badge/Claude_Code-a855f7?style=for-the-badge" alt="Claude Code"></a>
   <a href="#claude-desktop-config"><img src="https://img.shields.io/badge/Claude_Desktop-7c3aed?style=for-the-badge" alt="Claude Desktop"></a>
-  <img src="https://img.shields.io/badge/Cursor-06b6d4?style=for-the-badge" alt="Cursor">
-  <img src="https://img.shields.io/badge/Cline-475569?style=for-the-badge" alt="Cline">
-  <img src="https://img.shields.io/badge/Zed-0ea5e9?style=for-the-badge" alt="Zed">
+  <img src="https://img.shields.io/badge/ChatGPT_Desktop-10a37f?style=for-the-badge" alt="ChatGPT Desktop">
+  <img src="https://img.shields.io/badge/Codex-000000?style=for-the-badge" alt="Codex">
+  <img src="https://img.shields.io/badge/Gemini_CLI-4285f4?style=for-the-badge" alt="Gemini CLI">
   <img src="https://img.shields.io/badge/Any_MCP_1.x_Client-262626?style=for-the-badge" alt="any MCP 1.x client">
 </p>
 
