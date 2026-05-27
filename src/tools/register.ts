@@ -55,6 +55,7 @@ import { registerSmartAlarm } from "./v2/smart_alarm.js";
 import { registerSmartAlarmSet } from "./v2/smart_alarm_set.js";
 // Social
 import { registerLeaderboard } from "./v2/leaderboard.js";
+import { registerCommunities } from "./v2/communities.js";
 // Settings
 import { registerHrZones } from "./v2/hr_zones.js";
 import { registerHrZonesSet } from "./v2/hr_zones_set.js";
@@ -65,7 +66,7 @@ import { registerRaw } from "./v2/raw.js";
 import { registerEndpoints } from "./v2/endpoints.js";
 
 export function registerTools(server: McpServer, client: WhoopClient): void {
-  // Reads (31)
+  // Reads (32)
   registerToday(server, client);
   registerDay(server, client);
   registerProfile(server, client);
@@ -96,6 +97,7 @@ export function registerTools(server: McpServer, client: WhoopClient): void {
   registerPerformanceAssessment(server, client);
   registerSmartAlarm(server, client);
   registerLeaderboard(server, client);
+  registerCommunities(server, client);
   registerHrZones(server, client);
   // Writes (14: 13 + coach_ask)
   registerActivityCreate(server, client);

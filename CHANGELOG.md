@@ -6,6 +6,11 @@ All notable changes to this project. Format roughly follows [Keep a Changelog](h
 
 ### Added
 
+- **`whoop_communities`** (new tool, brings total to 48). Lists the communities you're a member of (teams, friend groups) with member counts and — optionally — your rank in each across a chosen metric (strain/sleep/recovery) over a window (day/week/month). Complements `whoop_leaderboard`: use `whoop_communities` to discover community IDs, then drill into one with `whoop_leaderboard`. Source: `GET /community-service/v1/communities/memberships` (already in use by `whoop_leaderboard` for community auto-discovery). Schema is permissive at the record level since the per-record field set hasn't been captured against a live account at the time of release — a `WhoopProjectionError` from this tool is the signal that Whoop's actual shape differs from the inferred one and the projection needs tightening.
+- **Strain target** added to `whoop_strain` output. The existing deep-dive response carries `score_target`, `lower_optimal_percentage`, and `higher_optimal_percentage` as 0–1 fractions of max strain (21); the projection multiplies by 21 to expose them as strain values. New schema field: `target: {value, optimal_lower, optimal_upper}`. Lets the AI answer "should I work out today?" with a concrete number ("you're at 18.9, target was 13.2 — already past optimal") instead of just a state label.
+
+### Added (earlier in this cycle)
+
 - **README banner.** New SVG banner at the top of the README (`assets/banner.svg`) — figlet-style "WHOOP MCP" block text in light gray with a 5-beat EKG pulse waveform underneath (real `<path>` element, not ASCII), centered horizontally, theme-aware via `prefers-color-scheme` (auto-flips to light text on dark mode). Added `assets/` to `package.json` `files` whitelist so it ships with the published package.
 
 ### Fixed
@@ -75,7 +80,7 @@ Initial public release.
 
 ### Added
 
-- **47 MCP tools** wrapping Whoop's private iOS API:
+- **48 MCP tools** wrapping Whoop's private iOS API:
   - 31 reads (today, day, profile, calendar, recovery, sleep, strain, trend, compare, stress, sleep_need, live_hr, live_state, live_stress, workouts, workout, sports_catalog, lift_prs, lift_exercise, lift_progression, lift_history, lift_library, lift_catalog, journal, journal_catalog, behavior_impact, cycle, performance_assessment, smart_alarm, leaderboard, hr_zones)
   - 14 writes (activity_create, activity_delete, lift_log, lift_template_save, lift_custom_exercise, journal_log, journal_autopop, cycle_log, symptom_log, smart_alarm_set, hr_zones_set, profile_update, hidden_metric, coach_ask)
   - 2 escape hatches (raw, endpoints)

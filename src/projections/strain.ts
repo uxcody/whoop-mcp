@@ -7,6 +7,9 @@ import { isObject, asArray, asString } from "../lib/walk.js";
 //   sections[].items[].type === "SCORE_GAUGE"
 //     content.id === "STRAIN_SCORE_GAUGE"
 //     content.score_display: "18.9"
+//     content.score_target: 0.6299...        ← daily strain target (0-1 of max=21)
+//     content.lower_optimal_percentage: 0.534... ← lower bound of optimal range
+//     content.higher_optimal_percentage: 0.749... ← upper bound of optimal range
 //
 //   sections[].items[].type === "CONTRIBUTORS_TILE"
 //     content.id === "STRAIN_CONTRIBUTORS_TILE"
@@ -21,6 +24,16 @@ import { isObject, asArray, asString } from "../lib/walk.js";
 // Calories, avg_hr_bpm, max_hr_bpm, and per-zone (zone_0..zone_5) granularity
 // are NOT in this endpoint anymore. They live in per-workout /cardio-details.
 // We populate zone_1 with the 1-3 aggregate and zone_4 with the 4-5 aggregate.
+
+// Whoop's strain scale is logarithmic 0–21. The deep-dive strain endpoint stores
+// the daily target as a 0–1 fraction of max; we multiply by 21 to convert back
+// to a strain value the AI can compare against the actual score.
+const MAX_STRAIN = 21;
+
+function targetFraction(content: Record<string, unknown>, key: string): number | null {
+  const v = content[key];
+  return typeof v === "number" && Number.isFinite(v) ? v * MAX_STRAIN : null;
+}
 
 function parseNumberWithCommas(s: string | null): number | null {
   if (!s) return null;
@@ -66,6 +79,11 @@ export function projectStrain(raw: unknown, date: string): StrainOutT {
     it.type === "SCORE_GAUGE" && asString(it.content.id) === "STRAIN_SCORE_GAUGE",
   );
   const score = gauge ? parseNumberWithCommas(asString(gauge.content.score_display)) : null;
+  const target = {
+    value: gauge ? targetFraction(gauge.content, "score_target") : null,
+    optimal_lower: gauge ? targetFraction(gauge.content, "lower_optimal_percentage") : null,
+    optimal_upper: gauge ? targetFraction(gauge.content, "higher_optimal_percentage") : null,
+  };
 
   const contributors = items.find((it) =>
     it.type === "CONTRIBUTORS_TILE" && asString(it.content.id) === "STRAIN_CONTRIBUTORS_TILE",
@@ -94,6 +112,7 @@ export function projectStrain(raw: unknown, date: string): StrainOutT {
   return {
     date,
     score,
+    target,
     calories: null,
     avg_hr_bpm: null,
     max_hr_bpm: null,

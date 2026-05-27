@@ -25,7 +25,7 @@ src/
 ├── lib/                 # walk / dates / format / stats helpers
 └── tools/
     ├── register.ts      # Wires every tool to the MCP server
-    └── v2/              # 47 tool handlers, one per file
+    └── v2/              # 48 tool handlers, one per file
 ```
 
 Every tool follows a three-layer pattern: **schema** (defines the output shape) → **projection** (walks the raw API response into that shape) → **tool** (registers it with the MCP server, validates input args, calls the client, runs the projection, returns).

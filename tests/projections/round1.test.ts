@@ -60,6 +60,13 @@ describe("projectStrain (captured — new SCORE_GAUGE/CONTRIBUTORS_TILE shape)",
   it("extracts day strain (18.9) from STRAIN_SCORE_GAUGE.score_display", () => {
     expect(out.score).toBe(18.9);
   });
+  it("extracts strain target (~13.23) by multiplying score_target × 21", () => {
+    expect(out.target.value).toBeCloseTo(13.23, 1);
+  });
+  it("extracts strain target optimal range (~11.23 → ~15.75)", () => {
+    expect(out.target.optimal_lower).toBeCloseTo(11.23, 1);
+    expect(out.target.optimal_upper).toBeCloseTo(15.75, 1);
+  });
   it("extracts steps (10616) from CONTRIBUTORS_TILE_STEPS", () => {
     expect(out.steps).toBe(10616);
   });

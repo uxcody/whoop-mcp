@@ -1,4 +1,4 @@
-# The 47 tools
+# The 48 tools
 
 > Full reference for every tool exposed by [whoop-mcp](README.md). Each entry has the input shape, source endpoint(s), and output shape. Catalog tools (`whoop_sports_catalog`, `whoop_lift_catalog`, `whoop_journal_catalog`) unlock their gated counterparts — see [README → Bundled catalogs](README.md#bundled-catalogs).
 
