@@ -6,6 +6,14 @@ All notable changes to this project. Format roughly follows [Keep a Changelog](h
 
 ### Added
 
+- **Two guided "one-command" setup flows** — the new recommended way to get going:
+  - **`whoop-mcp cloud`** ★ — walks you through the entire server-hosted path in one command: Whoop auth (SMS handled) → pick a host → generate `MCP_AUTH_TOKEN` + connector password → set env → deploy → verify `/health` + OAuth metadata are live → open claude.ai's connector page and print the URL + password to paste. By the end, Claude is connected across web, desktop, and mobile. Platforms: **Fly** (fully automated + tested), **Railway / Koyeb / Cloud Run** (runs their documented CLIs, then asks you to paste the resulting URL since their output formats vary and aren't author-tested), and **Custom** (printed Docker + env steps for any other host or your own server). OAuth is the default.
+  - **`whoop-mcp local`** — guided stdio setup: auth → build → writes the Claude Desktop config (or prints the Claude Code one-liner).
+  - New CLI modules `src/cli/ui.ts` (shared prompts/colors/runners) + `src/cli/setup.ts` (the flows). `cloud` writes a `.whoop-mcp-deploy.json` record so `refresh` knows where to push.
+- **Renamed for clarity**: `whoop-mcp bootstrap` → **`auth`**, `whoop-mcp rebootstrap` → **`refresh`**. `refresh` is auto/silent when the account has no SMS MFA and prompts for the code when it does. Help is now grouped with the two guided commands as the headline; everything else (logs, ping, deploy, start, etc.) stays available as advanced commands.
+
+### Added
+
 - **OAuth 2.1 authorization server (for claude.ai web + Claude mobile connectors).** Claude's custom-connector UI on web/mobile only supports OAuth — there's no bearer-token field — so the bearer setup only worked with Claude Code and the Claude Desktop `mcp-remote` bridge. The HTTP server now embeds a full OAuth 2.1 + PKCE authorization server (via the MCP SDK's `mcpAuthRouter` + a custom `OAuthServerProvider`), so the deployed server can be added as a custom connector and synced across every device on your Claude account.
   - **Password gate**: the `/authorize` step serves a small password page; the user enters `AUTH_PASSWORD` once when adding the connector. A stranger who finds the URL still can't connect.
   - **Stateless by design** (survives Fly's auto-stop restarts): access + refresh tokens are HS256 JWTs signed with `MCP_AUTH_TOKEN`; registered clients (dynamic client registration) encode their redirect URIs into a signed `client_id`, so Claude never has to re-register after a cold start. Only the 60-second authorization codes are in-memory.

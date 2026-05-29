@@ -54,3 +54,6 @@ dummy_*.ts
 *_probe.ts
 verify_*.ts
 fly.toml
+
+# deploy record written by `whoop-mcp cloud` (host-specific)
+.whoop-mcp-deploy.json

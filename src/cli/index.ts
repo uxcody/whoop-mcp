@@ -17,6 +17,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { request as httpsRequest } from "node:https";
+import { runCloudSetup, runLocalSetup } from "./setup.js";
 
 // ── locate package root ──────────────────────────────────────────────────
 // This file lives at one of:
@@ -89,15 +90,27 @@ function compactHeader(): void {
 
 // ── command registry ─────────────────────────────────────────────────────
 interface Cmd {
-  group: "Local" | "Setup" | "Deployed" | "Inspect" | "Help";
+  group: "Get started" | "Local" | "Setup" | "Deployed" | "Inspect" | "Help";
   desc: string;
   usage?: string;
   run: (args: string[]) => Promise<number>;
 }
 
-const GROUP_ORDER: Cmd["group"][] = ["Local", "Setup", "Deployed", "Inspect", "Help"];
+const GROUP_ORDER: Cmd["group"][] = ["Get started", "Setup", "Deployed", "Local", "Inspect", "Help"];
 
 const commands: Record<string, Cmd> = {
+  // ── Get started (headline) ─────────────────────────────────────────────
+  cloud: {
+    group: "Get started",
+    desc: "★ Recommended. Guided deploy to a host (Fly/Railway/Koyeb/Cloud Run/custom) + connect to Claude web/mobile via OAuth, in one command.",
+    run: async () => runCloudSetup(ROOT),
+  },
+  local: {
+    group: "Get started",
+    desc: "Guided setup to run the MCP on this machine (stdio) and wire it into Claude Desktop / Claude Code.",
+    run: async () => runLocalSetup(ROOT),
+  },
+
   // ── Local ────────────────────────────────────────────────────────────
   start: {
     group: "Local",
@@ -145,15 +158,15 @@ const commands: Record<string, Cmd> = {
   },
 
   // ── Setup ────────────────────────────────────────────────────────────
-  bootstrap: {
+  auth: {
     group: "Setup",
-    desc: "First-time Cognito login (writes tokens to .env)",
+    desc: "First-time Whoop (Cognito) login — writes tokens to .env",
     run: async () => run(npmBin("tsx"), [resolve(ROOT, "src", "scripts", "cognito_bootstrap.ts")]),
   },
-  rebootstrap: {
+  refresh: {
     group: "Setup",
-    desc: "Re-bootstrap + push fresh tokens to your Fly deployment",
-    usage: "whoop-mcp rebootstrap [--app <fly-app>]",
+    desc: "Re-auth when the ~30-day token expires (auto if no SMS MFA; prompts if your account has it) + push to your deployment",
+    usage: "whoop-mcp refresh [--app <fly-app>]",
     run: async (args) =>
       run(npmBin("tsx"), [resolve(ROOT, "src", "scripts", "rebootstrap.ts"), ...args]),
   },

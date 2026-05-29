@@ -36,58 +36,29 @@
 ## Quickstart (5 minutes)
 
 ```bash
-# 1. Clone + install
 git clone https://github.com/briangaoo/whoop-mcp.git
-cd whoop-mcp
-npm install
-
-# 2. Add your Whoop login to .env
-cp .env.example .env
-# edit .env: set WHOOP_EMAIL and WHOOP_PASSWORD
-
-# 3. One-time auth (handles SMS MFA if your account has it)
-npm run cognito-bootstrap
-
-# 4. Build
-npm run build
+cd whoop-mcp && npm install && npm run build && npm link
 ```
 
-Then wire into your client:
-
-**Claude Desktop** — edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "whoop": {
-      "command": "/opt/homebrew/bin/node",
-      "args": ["/absolute/path/to/whoop-mcp/dist/server.js"]
-    }
-  }
-}
-```
-
-**Claude Code** — one line:
+Then **one guided command** does everything — auth, setup, and connecting to Claude:
 
 ```bash
-claude mcp add whoop /opt/homebrew/bin/node /absolute/path/to/whoop-mcp/dist/server.js
+# ★ Recommended — deploy to a host + connect Claude on web, desktop, AND mobile:
+whoop-mcp cloud
+
+# Or run it locally on this machine (stdio, this device only):
+whoop-mcp local
 ```
 
-Restart your client. Ask Claude: *"how am i doing today on whoop?"* — you should see structured recovery / sleep / strain data come back.
+**`whoop-mcp cloud`** walks you through: Whoop login (SMS handled) → pick a host (Fly / Railway / Koyeb / Cloud Run / your own server) → it generates secrets, sets env, deploys, verifies the server + OAuth are live, then hands you the URL + password to paste into Claude's connector settings. By the end, Claude is connected across every device on your account.
 
-**Optional but recommended:** install the `whoop-mcp` CLI globally so you can manage the server, run tests, deploy, and tail logs from any directory:
+**`whoop-mcp local`** walks you through: Whoop login → build → writing the Claude Desktop config (or the Claude Code one-liner). Restart Claude and you're done.
 
-```bash
-npm link   # from inside whoop-mcp/ — symlinks `whoop-mcp` into your global PATH
+When the 30-day token expires, run **`whoop-mcp refresh`** (silent if your account has no SMS MFA; prompts for the code if it does).
 
-whoop-mcp         # banner + help
-whoop-mcp info    # current state of your install
-whoop-mcp ping    # is my deployment alive?
-```
+Then ask Claude: *"how am I doing today on whoop?"*
 
-See [The `whoop-mcp` CLI](#the-whoop-mcp-cli) for the full command reference.
-
-Want to host it on a remote URL so you can use it from multiple devices? See [Remote hosting](#remote-hosting). Stuck? Jump to [Troubleshooting](#troubleshooting).
+> Prefer to wire it up by hand? The guided commands just automate the steps in [The `whoop-mcp` CLI](#the-whoop-mcp-cli), [Remote hosting](#remote-hosting), and [Configuration](#configuration). Stuck? [Troubleshooting](#troubleshooting).
 
 ---
 
@@ -346,7 +317,9 @@ PUBLIC_URL=https://your-app.fly.dev   # your server's public origin (the OAuth i
 
 Then in Claude: **Settings → Connectors → Add custom connector**, paste `https://your-app.fly.dev/mcp`, and Claude walks the OAuth flow. It pops a small password page (served by your server) — enter `AUTH_PASSWORD`, approve, done. The connector then syncs across every device logged into your Claude account (web, desktop, mobile). The password gate means a stranger who finds your URL still can't connect without it. `MCP_AUTH_TOKEN` doubles as the JWT signing secret; leave `AUTH_PASSWORD` unset to disable this path.
 
-**When Cognito expires (~30 days)**: `npm run rebootstrap` from your Mac. Triggers SMS, prompts in your terminal, pushes new tokens to Fly secrets, ~10s restart. Requires being at a machine with the repo + fly CLI.
+All of the above is what `whoop-mcp cloud` automates for you — the manual steps here are for reference or hand-rolling.
+
+**When Cognito expires (~30 days)**: `whoop-mcp refresh` from your Mac. Silent if your account has no SMS MFA; prompts for the code if it does. Pushes new tokens to your deployment, ~10s restart. Requires being at a machine with the repo + the platform CLI.
 
 **Security**: bearer-token and OAuth paths both gate `/mcp`. Generate the token random (`openssl rand -hex 32`), HTTPS only, never commit, rotate if leaked. OAuth access/refresh tokens are stateless signed JWTs (survive restarts); auth codes are one-time + 60s-lived; PKCE S256 is enforced. `/health` is the only path without auth.
 
@@ -363,17 +336,18 @@ npm link        # symlinks `whoop-mcp` into your global PATH
 whoop-mcp       # banner + full command list
 ```
 
-15 subcommands across 5 groups:
+Commands by group:
 
 | Group | Commands |
 |---|---|
-| **Local** | `start [--http]` · `dev` · `dev:http` · `build` · `test` · `typecheck` |
-| **Setup** | `bootstrap` · `rebootstrap [--app <name>]` |
+| **Get started** | `cloud` ★ (guided server deploy + Claude connect) · `local` (guided local setup) |
+| **Setup** | `auth` (first Whoop login) · `refresh [--app <name>]` (re-auth when the token expires) |
 | **Deployed** | `deploy` · `logs` · `status` · `ping` |
+| **Local dev** | `start [--http]` · `dev` · `dev:http` · `build` · `test` · `typecheck` |
 | **Inspect** | `info` · `tools` · `config <stdio\|http>` |
 | **Help** | `help` · `version` (+ `--help`, `-v` aliases) |
 
-Highlights: `whoop-mcp ping` is your "is my deploy alive" probe. `whoop-mcp rebootstrap` is the one command that solves the 30-day refresh expiry. `whoop-mcp start` keeps stdout clean (drop-in for `node dist/server.js`).
+Most people only ever need the two **Get started** commands plus `refresh`. The rest are for power users — `whoop-mcp ping` ("is my deploy alive"), `whoop-mcp logs`, `whoop-mcp start` (drop-in for `node dist/server.js`), etc.
 
 ---
 
