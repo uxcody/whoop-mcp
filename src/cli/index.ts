@@ -104,7 +104,7 @@ const commands: Record<string, Cmd> = {
   // ── Get started (headline) ─────────────────────────────────────────────
   cloud: {
     group: "Get started",
-    desc: "★ Recommended. Guided deploy to a host (Fly/Railway/Koyeb/Cloud Run/custom) + connect to Claude web/mobile via OAuth, in one command.",
+    desc: "★ Recommended. Guided deploy to a host (Fly/Railway/Cloud Run/custom) + connect to Claude web/mobile via OAuth, in one command.",
     run: async () => runCloudSetup(ROOT),
   },
   local: {

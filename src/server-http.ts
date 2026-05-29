@@ -42,7 +42,7 @@ export async function startHttpServer(client: WhoopClient, opts: HttpServerOptio
   const host = opts.host ?? "0.0.0.0";
   const password = process.env.AUTH_PASSWORD ?? "";
   // `||` not `??`: an empty PUBLIC_URL (e.g. a host that injects "" for an unset
-  // var, or the first-pass deploy on Railway/Koyeb/Cloud Run before the real URL
+  // var, or the first-pass deploy on Railway/Cloud Run before the real URL
   // is known) must fall back to localhost, not become `new URL("")` → boot crash.
   const publicUrl = process.env.PUBLIC_URL || `http://localhost:${port}`;
   const oauthEnabled = password.length > 0;

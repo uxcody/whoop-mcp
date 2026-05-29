@@ -73,7 +73,7 @@ That puts `whoop-mcp` on your PATH (the one-time `npx tsc` builds it; after that
 Deploys the server to a host and connects it to Claude on **web, desktop, and mobile**, synced across every device on your account. One command walks through:
 
 1. **Whoop login** — email + password, plus the SMS code if your account has MFA. Tokens are saved locally and pushed to the host.
-2. **Pick a host** — Fly (automated + tested), Railway, Koyeb (genuinely free, no card), Google Cloud Run, or your own server (guided Docker steps).
+2. **Pick a host** — Fly (automated + tested), Railway, Google Cloud Run, or your own server (guided Docker steps).
 3. **Secrets** — generates `MCP_AUTH_TOKEN` and asks you to choose a connector password.
 4. **Deploy + verify** — sets env, deploys, confirms `/health` and the OAuth endpoints are live.
 5. **Connect** — opens claude.ai's connector page and prints the URL + password. Paste them into **Settings → Connectors → Add custom connector**, approve, and you're done.

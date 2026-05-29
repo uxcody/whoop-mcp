@@ -2,7 +2,7 @@
 // `whoop-mcp local` (stdio on this machine). These are the headline commands.
 //
 // Reality of multi-platform automation: only Fly is live-tested by the author.
-// Railway / Koyeb / Cloud Run run their documented CLI commands but, because
+// Railway / Cloud Run run their documented CLI commands but, because
 // their deploy-URL output formats vary and I can't verify them, the flow asks
 // you to paste the resulting URL rather than scraping it. Custom is a printed
 // guide for any other platform or your own server. Either way it's one command
@@ -192,11 +192,10 @@ export async function runCloudSetup(root: string): Promise<number> {
   const platformIdx = await promptChoice("Where should the server run?", [
     `Fly.io          ${c.gray("— fully automated + tested. ~$2/mo (no free tier).")}`,
     `Railway         ${c.gray("— $5/mo credit, always-on. CLI-driven.")}`,
-    `Koyeb           ${c.gray("— genuinely free, no card, no sleep. Builds from your GitHub.")}`,
     `Google Cloud Run ${c.gray("— generous free tier, scales to zero. Needs gcloud SDK.")}`,
     `Custom / own server ${c.gray("— step-by-step Docker instructions, no automation.")}`,
   ]);
-  const platforms = ["fly", "railway", "koyeb", "cloudrun", "custom"] as const;
+  const platforms = ["fly", "railway", "cloudrun", "custom"] as const;
   const platform = platforms[platformIdx]!;
 
   step(3, TOTAL, "Generate secrets");
@@ -227,7 +226,6 @@ export async function runCloudSetup(root: string): Promise<number> {
   let url: string | null = null;
   if (platform === "fly") url = await deployFly(ctx);
   else if (platform === "railway") url = await deployRailway(ctx);
-  else if (platform === "koyeb") url = await deployKoyeb(ctx);
   else if (platform === "cloudrun") url = await deployCloudRun(ctx);
   else url = await deployCustom(ctx);
 
@@ -390,35 +388,6 @@ async function deployRailway(ctx: DeployCtx): Promise<string | null> {
       { desc: "generate a public domain", cmd: ["railway", ["domain"]] },
     ],
     setPublicUrlHint: (url) => `railway variables --set "PUBLIC_URL=${url}" && railway up --detach`,
-    ctx,
-  });
-}
-
-// KOYEB — builds from your public GitHub repo (no local Docker push). Best-effort.
-async function deployKoyeb(ctx: DeployCtx): Promise<string | null> {
-  const envFlags: string[] = [];
-  for (const [k, v] of Object.entries({ ...ctx.env, PUBLIC_URL: "" })) envFlags.push("--env", `${k}=${v}`);
-  return assistedDeploy({
-    cliName: "koyeb",
-    install: { scriptUrl: "https://cli.koyeb.com/install.sh", manualHint: "curl -fsSL https://cli.koyeb.com/install.sh | sh" },
-    loginCheck: () => capture("koyeb", ["whoami"]).code === 0,
-    loginCmd: () => run("koyeb", ["login"]),
-    steps: [
-      {
-        desc: "create the service from your GitHub repo (Docker build)",
-        cmd: ["koyeb", [
-          "service", "create", ctx.appName,
-          "--app", ctx.appName,
-          "--git", "github.com/briangaoo/whoop-mcp",
-          "--git-branch", "main",
-          "--git-builder", "docker",
-          "--ports", "3000:http",
-          "--routes", "/:3000",
-          ...envFlags,
-        ]],
-      },
-    ],
-    setPublicUrlHint: (url) => `koyeb service update ${ctx.appName}/${ctx.appName} --env PUBLIC_URL=${url}`,
     ctx,
   });
 }
