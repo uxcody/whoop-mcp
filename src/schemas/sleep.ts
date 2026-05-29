@@ -1,11 +1,12 @@
 import { z } from "zod";
+import { IsoDateTime } from "./primitives.js";
 
 export const SleepStageEnum = z.enum(["AWAKE", "LIGHT", "REM", "SWS"]);
 
 export const SleepOut = z.object({
   date: z.iso.date(),
-  started_at: z.iso.datetime({ offset: true }).nullable(),
-  ended_at: z.iso.datetime({ offset: true }).nullable(),
+  started_at: IsoDateTime.nullable(),
+  ended_at: IsoDateTime.nullable(),
   total_sleep_ms: z.number().int().nullable(),
   time_in_bed_ms: z.number().int().nullable(),
   efficiency_pct: z.number().nullable(),
@@ -24,8 +25,8 @@ export const SleepOut = z.object({
     wake_pct: z.number().nullable(),
   }),
   hypnogram: z.array(z.object({
-    started_at: z.iso.datetime({ offset: true }),
-    ended_at: z.iso.datetime({ offset: true }),
+    started_at: IsoDateTime,
+    ended_at: IsoDateTime,
     stage: SleepStageEnum,
   })),
   disturbances: z.number().int().nullable(),

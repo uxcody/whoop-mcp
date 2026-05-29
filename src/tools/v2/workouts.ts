@@ -15,7 +15,7 @@ export function registerWorkouts(server: McpServer, client: WhoopClient): void {
       start: z.iso.datetime({ offset: true }).optional().describe("ISO timestamp lower bound. Default: 30 days ago."),
       end: z.iso.datetime({ offset: true }).optional().describe("ISO timestamp upper bound. Default: now."),
       sport: z.string().optional().describe("Case-insensitive substring match on sport_name."),
-      limit: z.number().int().min(1).max(50).default(10),
+      limit: z.number().int().min(1).max(25).default(10),
     },
     async ({ start, end, sport, limit }) => {
       const window = start && end ? { start, end } : rangeFromDays(30);

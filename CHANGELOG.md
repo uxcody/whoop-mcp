@@ -4,6 +4,21 @@ All notable changes to this project. Format roughly follows [Keep a Changelog](h
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-05-29
+
+### Security
+
+- **OAuth consent gate hardened.** The connector password minimum is now 12 chars (was 4), and `POST /oauth/consent` — a custom route not covered by the SDK's OAuth rate-limiter — now enforces a per-IP fixed-window limit (10 attempts / 15 min → `429`), blunting brute force against the gate to your health data.
+- **Scrubbed real account/community IDs from the bundled endpoint catalog.** `src/data/endpoints.ts` shipped concrete community IDs + user IDs captured during reverse-engineering; they're now templated to `{id}` / `{userId}` (deduped 384 → 326 entries).
+
+### Fixed
+
+- **`whoop_journal` (+ other timestamp fields) threw on Whoop's no-colon offset form.** Output schemas used `z.iso.datetime({ offset: true })`, which rejects the `+0000` / `-0700` form Whoop's journal/pg-range endpoints emit — and validation runs *before* `localizeTimestamps` normalizes it, so a populated `recorded_at` raised `WhoopProjectionError`. Replaced with a shared `IsoDateTime` schema (in `schemas/primitives.ts`) accepting `Z`, `±HH:MM`, and `±HHMM`; added a regression test.
+- **HTTP server crashed on boot when `PUBLIC_URL` was empty.** `process.env.PUBLIC_URL ?? localhost` let an empty string reach `new URL("")` (a `TypeError`), crash-looping the first deploy on hosts that inject `PUBLIC_URL=""` (the Railway / Koyeb / Cloud Run first pass). Now treated as unset (`||`).
+- **`whoop_lift_log` mislabeled the logged workout's timezone on cloud hosts** (used the system zone — UTC on Fly/Docker). Now prefers an IANA `WHOOP_TIMEZONE`, falling back to the system zone for local use.
+- **`whoop_workouts` `limit` now caps at 25** to match the upstream API page size (the schema advertised up to 50 but the fetch silently returned ≤25).
+- CLI banner tool count corrected (47 → 48); removed dead code in the recovery/trend projections; clarified the `session_state` gate comment (per-process, not per-session).
+
 ### Added
 
 - **Two guided "one-command" setup flows** — the new recommended way to get going:

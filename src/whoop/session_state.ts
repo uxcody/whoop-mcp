@@ -1,4 +1,6 @@
-// Per-session "catalog consulted" gate.
+// Per-process "catalog consulted" gate. (One Set per server process. In stdio
+// mode that's one client; in HTTP multi-session mode it's shared across
+// sessions — harmless for this single-user MCP, but not literally per-session.)
 //
 // MCP servers run as a persistent process per client. Tools that take large-
 // enum-style IDs (sport_id, exercise_id, behavior_tracker_id) refuse to run

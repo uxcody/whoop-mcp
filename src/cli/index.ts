@@ -80,7 +80,7 @@ function printBanner(): void {
     "",
     c.brandDim("   ▁▁▁▁▂▂▆▂▁▁▁▁▁▁▁▁▂▂▆▂▁▁▁▁▁▁▁▁▂▂▆▂▁▁▁▁▁▁▁▁▂▂▆▂▁▁▁▁▁▁▁▁▂▂▆▂▁▁▁▁▁▁▁▁▂▂▆▂▁▁▁"),
     "",
-    `   ${c.bold("v" + VERSION)}  ${c.gray("·")}  ${c.white("47 MCP tools")}  ${c.gray("·")}  ${c.white("47 microservices")}  ${c.gray("·")}  ${c.white("remote-ready")}`,
+    `   ${c.bold("v" + VERSION)}  ${c.gray("·")}  ${c.white("48 MCP tools")}  ${c.gray("·")}  ${c.white("47 microservices")}  ${c.gray("·")}  ${c.white("remote-ready")}`,
     "",
   ];
   for (const line of lines) console.log(line);

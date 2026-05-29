@@ -1,5 +1,5 @@
 import type { RecoveryOutT } from "../schemas/recovery.js";
-import { isObject, asArray, asString, asNumber } from "../lib/walk.js";
+import { isObject, asArray, asString } from "../lib/walk.js";
 
 // Whoop migrated the /home-service/v1/deep-dive/recovery shape in May 2026 from
 // GRAPHING_CARD tiles (titled "RECOVERY", "HEART RATE VARIABILITY", etc.) to a
@@ -92,9 +92,6 @@ export function projectRecovery(raw: unknown, date: string): RecoveryOutT {
   const sleepPerf = readMetric("SLEEP_PERFORMANCE");
   const spo2 = readMetric("SPO2");
   const skinTemp = readMetric("SKIN_TEMPERATURE");
-
-  // Discard 'asNumber' import warning — used in lib walks elsewhere
-  void asNumber;
 
   return {
     date,

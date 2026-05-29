@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { IsoDateTime } from "./primitives.js";
 
 export const StressOut = z.object({
   date: z.iso.date(),
@@ -8,8 +9,8 @@ export const StressOut = z.object({
   min_level: z.number().nullable(),
   calibration_state: z.enum(["CALIBRATING", "CALIBRATED"]).nullable(),
   timeline: z.array(z.object({
-    started_at: z.iso.datetime({ offset: true }),
-    ended_at: z.iso.datetime({ offset: true }),
+    started_at: IsoDateTime,
+    ended_at: IsoDateTime,
     level: z.number().nullable(),
   })),
 });

@@ -1,10 +1,10 @@
 import { z } from "zod";
-import { withPreview } from "./primitives.js";
+import { IsoDateTime, withPreview } from "./primitives.js";
 
 export const HrZonesOut = z.object({
   max_hr: z.number().int().nullable(),
   is_custom: z.boolean(),
-  effective_timestamp: z.iso.datetime({ offset: true }).nullable(),
+  effective_timestamp: IsoDateTime.nullable(),
   zones: z.array(z.object({
     id: z.enum(["ZONE_1", "ZONE_2", "ZONE_3", "ZONE_4", "ZONE_5"]),
     min: z.number().int(),

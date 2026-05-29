@@ -1,11 +1,11 @@
 import { z } from "zod";
-import { HrZoneDurations, withPreview } from "./primitives.js";
+import { HrZoneDurations, IsoDateTime, withPreview } from "./primitives.js";
 
 export const WorkoutListOut = z.array(z.object({
   id: z.string(),
   sport_name: z.string(),
-  start: z.iso.datetime({ offset: true }),
-  end: z.iso.datetime({ offset: true }),
+  start: IsoDateTime,
+  end: IsoDateTime,
   duration_ms: z.number().int(),
   strain: z.number().nullable(),
   avg_hr_bpm: z.number().nullable(),
@@ -18,8 +18,8 @@ export type WorkoutListOutT = z.infer<typeof WorkoutListOut>;
 export const WorkoutOut = z.object({
   id: z.string(),
   sport_name: z.string().nullable(),
-  start: z.iso.datetime({ offset: true }).nullable(),
-  end: z.iso.datetime({ offset: true }).nullable(),
+  start: IsoDateTime.nullable(),
+  end: IsoDateTime.nullable(),
   duration_ms: z.number().int().nullable(),
   strain: z.number().nullable(),
   calories: z.number().int().nullable(),
@@ -28,7 +28,7 @@ export const WorkoutOut = z.object({
   max_hr_bpm: z.number().nullable(),
   zone_durations: HrZoneDurations,
   hr_curve: z.array(z.object({
-    at: z.iso.datetime({ offset: true }),
+    at: IsoDateTime,
     bpm: z.number().int(),
   })),
   msk: z.object({
@@ -44,8 +44,8 @@ export const ActivityCreateOut = withPreview(z.object({
   created: z.literal(true),
   activity_id: z.string(),
   cycle_id: z.number().int(),
-  start: z.iso.datetime({ offset: true }),
-  end: z.iso.datetime({ offset: true }),
+  start: IsoDateTime,
+  end: IsoDateTime,
   sport_id: z.number().int(),
 }));
 

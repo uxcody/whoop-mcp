@@ -1,10 +1,11 @@
 import { z } from "zod";
+import { IsoDateTime } from "./primitives.js";
 
 export const LiveHrOut = z.object({
   current_bpm: z.number().int().nullable(),
   hr_zone: z.number().int().min(0).max(5).nullable(),
   is_recording: z.boolean(),
-  last_updated_at: z.iso.datetime({ offset: true }).nullable(),
+  last_updated_at: IsoDateTime.nullable(),
   show_live_hr: z.boolean(),
 });
 export type LiveHrOutT = z.infer<typeof LiveHrOut>;
@@ -14,10 +15,10 @@ export const LiveStateOut = z.object({
   sport_name: z.string().nullable(),
   sport_id: z.number().int().nullable(),
   activity_id: z.string().nullable(),
-  started_at: z.iso.datetime({ offset: true }).nullable(),
+  started_at: IsoDateTime.nullable(),
   duration_so_far_ms: z.number().int().nullable(),
   tracked_sleep: z.boolean(),
-  latest_metrics_at: z.iso.datetime({ offset: true }).nullable(),
+  latest_metrics_at: IsoDateTime.nullable(),
 });
 export type LiveStateOutT = z.infer<typeof LiveStateOut>;
 
@@ -25,6 +26,6 @@ export const LiveStressOut = z.object({
   current_level: z.number().nullable(),
   baseline_level: z.number().nullable(),
   calibration_state: z.enum(["CALIBRATING", "CALIBRATED"]).nullable(),
-  last_updated_at: z.iso.datetime({ offset: true }).nullable(),
+  last_updated_at: IsoDateTime.nullable(),
 });
 export type LiveStressOutT = z.infer<typeof LiveStressOut>;

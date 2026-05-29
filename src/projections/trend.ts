@@ -87,7 +87,6 @@ export function projectTrend(raw: unknown, metric: TrendOutT["metric"], endDate:
     const metricsArr = asArray(s.metrics);
     const m0 = isObject(metricsArr[0]) ? (metricsArr[0] as Record<string, unknown>) : null;
     const avg = m0 ? asNumber(m0.current_metric_value) : null;
-    const previous = m0 ? asNumber(m0.previous_metric_value) : null;
     const deltaPct = m0 ? asNumber(m0.metric_change) : null;
     const unit = m0 ? asString(m0.metric_units_display) : null;
     const points = extractPoints(s.graph);
@@ -103,8 +102,6 @@ export function projectTrend(raw: unknown, metric: TrendOutT["metric"], endDate:
       unit,
       points,
     });
-    // previous unused for now — exposed via delta_pct
-    void previous;
   }
 
   if (Array.isArray(root.time_segments)) {

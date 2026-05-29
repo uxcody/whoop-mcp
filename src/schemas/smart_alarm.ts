@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { withPreview } from "./primitives.js";
+import { IsoDateTime, withPreview } from "./primitives.js";
 
 export const DayOfWeek = z.enum([
   "MONDAY",
@@ -20,7 +20,7 @@ export const SmartAlarmOut = z.object({
     upper_time_bound: z.string().nullable(),
     goal: z.enum(["EXACT_TIME_PEAK", "EXACT_TIME_OPTIMIZE_SLEEP", "IN_THE_GREEN"]).nullable(),
     weekly_plan_goal_minutes: z.number().int().nullable(),
-    last_triggered_at: z.iso.datetime({ offset: true }).nullable(),
+    last_triggered_at: IsoDateTime.nullable(),
   }),
   schedules: z.array(z.object({
     schedule_id: z.string(),

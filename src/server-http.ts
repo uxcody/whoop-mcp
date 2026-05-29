@@ -41,7 +41,10 @@ export async function startHttpServer(client: WhoopClient, opts: HttpServerOptio
   const port = opts.port ?? Number(process.env.PORT ?? process.env.MCP_HTTP_PORT ?? 3000);
   const host = opts.host ?? "0.0.0.0";
   const password = process.env.AUTH_PASSWORD ?? "";
-  const publicUrl = process.env.PUBLIC_URL ?? `http://localhost:${port}`;
+  // `||` not `??`: an empty PUBLIC_URL (e.g. a host that injects "" for an unset
+  // var, or the first-pass deploy on Railway/Koyeb/Cloud Run before the real URL
+  // is known) must fall back to localhost, not become `new URL("")` → boot crash.
+  const publicUrl = process.env.PUBLIC_URL || `http://localhost:${port}`;
   const oauthEnabled = password.length > 0;
 
   const provider = new WhoopOAuthProvider({
@@ -62,7 +65,7 @@ export async function startHttpServer(client: WhoopClient, opts: HttpServerOptio
       if (existing) return existing;
     }
     const newId = randomUUID();
-    const newServer = new McpServer({ name: "whoop", version: "1.1.0" });
+    const newServer = new McpServer({ name: "whoop", version: "1.2.0" });
     registerTools(newServer, client);
     const newTransport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => newId,
@@ -117,12 +120,28 @@ export async function startHttpServer(client: WhoopClient, opts: HttpServerOptio
   const resourceServerUrl = new URL(`${publicUrl.replace(/\/$/, "")}/mcp`);
   app.use(mcpAuthRouter({ provider, issuerUrl, resourceServerUrl }));
 
+  // Brute-force guard for the password gate: this consent route is custom and
+  // is NOT covered by the SDK's OAuth rate-limiter. Per-IP fixed window
+  // (trust proxy=1 gives us the real client IP via req.ip).
+  const consentHits = new Map<string, { count: number; resetAt: number }>();
+  const CONSENT_MAX = 10;
+  const CONSENT_WINDOW_MS = 15 * 60 * 1000;
+
   // Password-gate handler for the /authorize step. The form rendered by
   // provider.authorize() POSTs here; we validate the password, mint an auth
   // code, and redirect back to the client.
   app.post("/oauth/consent", express.urlencoded({ extended: false }), (req: Request, res: Response) => {
     if (!oauthEnabled) {
       res.status(403).json({ error: "oauth_disabled", error_description: "AUTH_PASSWORD is not set on this server." });
+      return;
+    }
+    const ip = req.ip ?? "unknown";
+    const now = Date.now();
+    const hit = consentHits.get(ip);
+    if (!hit || now > hit.resetAt) {
+      consentHits.set(ip, { count: 1, resetAt: now + CONSENT_WINDOW_MS });
+    } else if (++hit.count > CONSENT_MAX) {
+      res.status(429).json({ error: "too_many_requests", error_description: "Too many attempts — wait 15 minutes." });
       return;
     }
     const body = req.body as Record<string, string>;

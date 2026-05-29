@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { IsoDateTime } from "./primitives.js";
 
 export const TodayOut = z.object({
   date: z.iso.date(),
@@ -19,8 +20,8 @@ export const TodayOut = z.object({
       sws_ms: z.number().int().nullable(),
       wake_ms: z.number().int().nullable(),
     }),
-    started_at: z.iso.datetime({ offset: true }).nullable(),
-    ended_at: z.iso.datetime({ offset: true }).nullable(),
+    started_at: IsoDateTime.nullable(),
+    ended_at: IsoDateTime.nullable(),
   }),
   strain: z.object({
     score: z.number().nullable(),
@@ -32,7 +33,7 @@ export const TodayOut = z.object({
   current_state: z.object({
     state: z.enum(["workout", "sleep", "idle", "recovery"]).nullable(),
     sport_name: z.string().nullable(),
-    started_at: z.iso.datetime({ offset: true }).nullable(),
+    started_at: IsoDateTime.nullable(),
   }),
 });
 export type TodayOutT = z.infer<typeof TodayOut>;

@@ -203,8 +203,8 @@ export async function runCloudSetup(root: string): Promise<number> {
   const mcpToken = genToken();
   console.log(`  MCP_AUTH_TOKEN: ${c.gray(mcpToken.slice(0, 12) + "… (generated)")}`);
   let password = await prompt("Pick a connector password (you'll type this once in Claude when adding it)");
-  while (password.length < 4) {
-    console.log(c.red("  Use at least 4 characters."));
+  while (password.length < 12) {
+    console.log(c.red("  Use at least 12 characters — this gates remote access to your health data."));
     password = await prompt("Connector password");
   }
 

@@ -50,10 +50,16 @@ export function registerLiftLog(server: McpServer, client: WhoopClient): void {
           isError: true,
         };
       }
+      // Whoop's body wants an IANA zone name. Prefer WHOOP_TIMEZONE when it's an
+      // IANA name (cloud hosts run in UTC, so the system zone would mislabel the
+      // logged workout); else fall back to the system zone (correct for local
+      // stdio use). Never send a bare numeric offset.
+      const tzEnv = process.env.WHOOP_TIMEZONE;
+      const timezone = tzEnv && tzEnv.includes("/") ? tzEnv : Intl.DateTimeFormat().resolvedOptions().timeZone;
       const body = {
         name: name ?? new Date(endTs).toISOString().slice(0, 10),
         during: `['${new Date(startTs).toISOString()}','${new Date(endTs).toISOString()}')`,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        timezone,
         scaled_msk_strain_score: 0,
         msk_total_volume_kg: 0,
         msk_intensity_percent: 0,

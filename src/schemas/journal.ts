@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { withPreview } from "./primitives.js";
+import { IsoDateTime, withPreview } from "./primitives.js";
 
 // ─── Catalog row schema ─────────────────────────────────────────────────────
 export const JournalBehaviorSchema = z.object({
@@ -27,7 +27,7 @@ export const JournalOut = z.object({
     answered_yes: z.boolean().nullable(),
     magnitude_value: z.number().nullable(),
     magnitude_label: z.string().nullable(),
-    recorded_at: z.iso.datetime({ offset: true }).nullable(),
+    recorded_at: IsoDateTime.nullable(),
   })),
 });
 export type JournalOutT = z.infer<typeof JournalOut>;
