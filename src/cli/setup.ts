@@ -506,6 +506,7 @@ async function assistedDeploy(opts: {
   loginCheck: () => boolean;
   loginCmd: () => Promise<number>;
   steps: Array<{ desc: string; cmd?: [string, string[]]; run?: () => Promise<boolean>; retries?: number }>;
+  getUrl?: () => Promise<string | null>;
   setPublicUrlCmds: (url: string) => Array<[string, string[]]>;
   ctx: DeployCtx;
 }): Promise<string | null> {
@@ -531,9 +532,16 @@ async function assistedDeploy(opts: {
       if (!(await promptYesNo("Continue anyway?", false))) return null;
     }
   }
-  let url = (await prompt("Paste your deployment's public URL (e.g. https://your-app.up.railway.app)")).trim();
-  if (url && !/^https?:\/\//i.test(url)) url = "https://" + url; // accept a bare domain
-  if (!/^https?:\/\/[^/.]+\.[^/]+/.test(url)) { console.log(c.red("  Need a valid URL (e.g. https://your-app.up.railway.app).")); return null; }
+  // Auto-detect the deployed URL (the deploy just printed it); only fall back to
+  // asking the user to paste if detection failed.
+  let url: string | null = opts.getUrl ? await opts.getUrl() : null;
+  if (url) {
+    console.log(c.green(`  ✓ detected URL: ${url}`));
+  } else {
+    url = (await prompt("Paste your deployment's public URL (e.g. https://your-app.up.railway.app)")).trim();
+    if (url && !/^https?:\/\//i.test(url)) url = "https://" + url; // accept a bare domain
+    if (!/^https?:\/\/[^/.]+\.[^/]+/.test(url)) { console.log(c.red("  Need a valid URL (e.g. https://your-app.up.railway.app).")); return null; }
+  }
   url = url.replace(/\/$/, "");
   // OAuth's issuer must equal the real URL, which we only know now — so set
   // PUBLIC_URL and redeploy automatically (run() inherits stdio → the user sees
@@ -604,8 +612,19 @@ async function deployRailway(ctx: DeployCtx): Promise<string | null> {
       { desc: "create the project", run: () => railwayInitOrLink(ctx.appName, ctx.root) },
       { desc: "deploy (creates the service + builds the Dockerfile)", cmd: ["railway", ["up", "--detach"]], retries: 3 },
       { desc: "set environment variables (redeploys with them)", cmd: ["railway", varArgs], retries: 3 },
-      { desc: "generate a public domain", cmd: ["railway", ["domain"]], retries: 3 },
     ],
+    getUrl: async () => {
+      // `railway domain` prints "🚀 https://…up.railway.app" — capture + parse it
+      // instead of asking the user to paste what we just printed.
+      for (let i = 0; i < 4; i++) {
+        if (i > 0) { console.log(c.yellow(`    API hiccup — retry ${i}/3…`)); await new Promise((r) => setTimeout(r, 2500)); }
+        console.log(c.gray("  → get the public domain\n    $ railway domain"));
+        const r = capture("railway", ["domain"], { cwd: ctx.root });
+        const m = `${r.stdout}\n${r.stderr}`.match(/https?:\/\/[a-z0-9.-]+\.up\.railway\.app/i);
+        if (m) return m[0];
+      }
+      return null;
+    },
     setPublicUrlCmds: (url) => [
       ["railway", ["variables", "--set", `PUBLIC_URL=${url}`]],
       ["railway", ["up", "--detach"]],
@@ -664,6 +683,12 @@ async function deployCloudRun(ctx: DeployCtx): Promise<string | null> {
           ]],
         },
       ],
+      getUrl: async () => {
+        // gcloud knows the service URL — fetch it instead of asking the user.
+        const r = capture("gcloud", ["run", "services", "describe", ctx.appName, "--region", "us-west1", "--format=value(status.url)"]);
+        const url = r.stdout.trim();
+        return /^https?:\/\//.test(url) ? url : null;
+      },
       setPublicUrlCmds: (url) => [
         ["gcloud", ["run", "services", "update", ctx.appName, "--region", "us-west1", "--update-env-vars", `PUBLIC_URL=${url}`, "--quiet"]],
       ],
