@@ -2,7 +2,7 @@
 // authenticates against AWS Cognito, prompts for SMS MFA code if required,
 // writes access_token + refresh_token to .env.
 import "dotenv/config";
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, chmodSync } from "node:fs";
 import { createInterface } from "node:readline/promises";
 import { resolve } from "node:path";
 import { bootstrapCognito, refreshCognitoSession } from "../whoop/cognito.js";
@@ -24,7 +24,10 @@ function upsertEnv(updates: Record<string, string>): void {
     if (idx >= 0) lines[idx] = entry;
     else lines.push(entry);
   }
-  writeFileSync(ENV_PATH, lines.join("\n"));
+  // .env holds the Cognito tokens — keep it owner-only (0600). `mode` only
+  // applies on creation, so chmod enforces it when the file already exists.
+  writeFileSync(ENV_PATH, lines.join("\n"), { mode: 0o600 });
+  chmodSync(ENV_PATH, 0o600);
 }
 
 async function main() {

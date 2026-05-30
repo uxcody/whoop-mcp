@@ -11,7 +11,7 @@
 //     systems (Cloudflare Workers, Vercel Functions). Accept that you'll
 //     re-bootstrap every 30 days. Opt in via WHOOP_TOKEN_STORE=memory.
 
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, chmodSync } from "node:fs";
 
 export interface TokenStore {
   save(updates: { accessToken: string; refreshToken: string }): void;
@@ -31,7 +31,10 @@ export class EnvFileTokenStore implements TokenStore {
     };
     upsert("WHOOP_IOS_BEARER_TOKEN", updates.accessToken);
     upsert("WHOOP_COGNITO_REFRESH_TOKEN", updates.refreshToken);
-    writeFileSync(this.path, lines.join("\n"));
+    // This file holds the Cognito access + refresh tokens. Keep it owner-only
+    // (0600); `mode` only applies on creation, so chmod enforces it on rewrites.
+    writeFileSync(this.path, lines.join("\n"), { mode: 0o600 });
+    chmodSync(this.path, 0o600);
   }
 }
 
