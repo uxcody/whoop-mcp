@@ -7,7 +7,7 @@
 // you to paste the resulting URL rather than scraping it. Custom is a printed
 // guide for any other platform or your own server. Either way it's one command
 // that walks you to a working, Claude-connected deployment.
-import { existsSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, rmSync, chmodSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
@@ -39,7 +39,10 @@ function upsertEnv(root: string, updates: Record<string, string>): void {
     if (idx >= 0) lines[idx] = `${k}=${v}`;
     else lines.push(`${k}=${v}`);
   }
-  writeFileSync(p, lines.join("\n"));
+  // .env can hold tokens and the MCP auth secret — keep it owner-only (0600).
+  // `mode` only applies on creation, so chmod enforces it on rewrites too.
+  writeFileSync(p, lines.join("\n"), { mode: 0o600 });
+  chmodSync(p, 0o600);
 }
 
 // Record of where we deployed, so `refresh` can push to the right place later.

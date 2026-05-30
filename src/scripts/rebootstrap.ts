@@ -18,7 +18,7 @@
 // instead — this script is purely a convenience wrapper for the
 // "local bootstrap → remote sync" workflow.
 import "dotenv/config";
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, chmodSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { createInterface } from "node:readline/promises";
 import { resolve } from "node:path";
@@ -41,7 +41,10 @@ function upsertEnv(updates: Record<string, string>): void {
     if (idx >= 0) lines[idx] = entry;
     else lines.push(entry);
   }
-  writeFileSync(ENV_PATH, lines.join("\n"));
+  // .env holds the Cognito tokens — keep it owner-only (0600). `mode` only
+  // applies on creation, so chmod enforces it when the file already exists.
+  writeFileSync(ENV_PATH, lines.join("\n"), { mode: 0o600 });
+  chmodSync(ENV_PATH, 0o600);
 }
 
 function getFlyApp(): string | null {
