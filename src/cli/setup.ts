@@ -94,35 +94,157 @@ async function ensureAuth(root: string): Promise<boolean> {
   return true;
 }
 
+// ── prerequisites (guided preflight, consistent across every path) ────────────
+// Each prerequisite is shown: already-satisfied ones are ✓'d and skipped; the
+// rest are guided to completion. The whole list always runs, so you see exactly
+// what was already set up vs. what we just did, then it returns to the flow.
+interface Prereq {
+  label: string;
+  check: () => boolean | Promise<boolean>;
+  ensure: () => Promise<boolean>;
+}
+
+async function preflight(prereqs: Prereq[]): Promise<boolean> {
+  for (const p of prereqs) {
+    if (await p.check()) { console.log(c.green(`  ✓ ${p.label}`)); continue; }
+    console.log(c.yellow(`  • ${p.label} — setting it up`));
+    if (!(await p.ensure())) { console.log(c.red(`  ✗ ${p.label} — couldn't complete; fix the above + re-run.`)); return false; }
+    console.log(c.green(`  ✓ ${p.label}`));
+  }
+  return true;
+}
+
+// shared prerequisites ────────────────────────────────────────────────────────
+const nodePrereq: Prereq = {
+  label: `Node.js ≥ 24 (have ${process.version})`,
+  check: () => Number(process.versions.node.split(".")[0] || "0") >= 24,
+  ensure: async () => {
+    console.log(c.gray("  Needs Node 24+. Upgrade (https://nodejs.org or `brew upgrade node`) and re-run."));
+    return false;
+  },
+};
+function depsPrereq(root: string): Prereq {
+  return { label: "npm dependencies", check: () => existsSync(resolve(root, "node_modules")), ensure: () => ensureDeps(root) };
+}
+function buildPrereq(root: string): Prereq {
+  return {
+    label: "server built (dist/)",
+    check: () => existsSync(resolve(root, "dist", "server.js")),
+    ensure: async () => {
+      const tsc = resolve(root, "node_modules", ".bin", "tsc");
+      if (!existsSync(tsc)) { console.log(c.gray("  No TypeScript compiler — run `npm install`, then re-run.")); return false; }
+      return (await run(process.execPath, [tsc], { cwd: root })) === 0;
+    },
+  };
+}
+
+// host-CLI prerequisite (install on demand via ensureCli) ──────────────────────
+function cliPrereq(label: string, name: string, install: { brewPkg?: string; npmPkg?: string; scriptUrl?: string; manualHint: string }): Prereq {
+  return { label, check: () => commandExists(name), ensure: () => ensureCli(name, install) };
+}
+
+const flyPrereqs: Prereq[] = [
+  {
+    label: "Fly CLI (flyctl)",
+    check: () => commandExists("fly") || commandExists("flyctl"),
+    ensure: () => ensureCli("flyctl", { brewPkg: "flyctl", scriptUrl: "https://fly.io/install.sh", manualHint: "brew install flyctl (or: curl -L https://fly.io/install.sh | sh)" }),
+  },
+  {
+    label: "logged into Fly",
+    check: () => capture(commandExists("fly") ? "fly" : "flyctl", ["auth", "whoami"]).code === 0,
+    ensure: async () => (await run(commandExists("fly") ? "fly" : "flyctl", ["auth", "login"])) === 0,
+  },
+];
+
+const railwayPrereqs: Prereq[] = [
+  cliPrereq("Railway CLI", "railway", { npmPkg: "@railway/cli", brewPkg: "railway", manualHint: "npm i -g @railway/cli (or: brew install railway)" }),
+  {
+    label: "logged into Railway",
+    check: () => capture("railway", ["whoami"]).code === 0,
+    ensure: async () => (await run("railway", ["login"])) === 0,
+  },
+];
+
+// gcloud needs more than a CLI: install → auth → project → billing.
+async function selectOrCreateGcpProject(): Promise<boolean> {
+  const existing = capture("gcloud", ["projects", "list", "--format=value(projectId)"]).stdout.trim().split("\n").filter(Boolean);
+  const choices = [...existing.map((p) => `Use existing project: ${p}`), "Create a new project"];
+  const idx = existing.length > 0 ? await promptChoice("Which GCP project?", choices) : choices.length - 1;
+  let project: string;
+  if (idx < existing.length) {
+    project = existing[idx]!;
+  } else {
+    project = await prompt("New project ID (lowercase, 6-30 chars, globally unique)", `whoop-mcp-${genToken().slice(0, 6)}`);
+    console.log(c.gray(`    $ gcloud projects create ${project}`));
+    if (await run("gcloud", ["projects", "create", project]) !== 0) { console.log(c.red("  Project creation failed.")); return false; }
+  }
+  return (await run("gcloud", ["config", "set", "project", project])) === 0;
+}
+
+const gcloudPrereqs: Prereq[] = [
+  {
+    label: "gcloud SDK installed",
+    check: () => commandExists("gcloud"),
+    ensure: async () => {
+      if (commandExists("brew") && await promptYesNo("Install the gcloud SDK via Homebrew (brew install --cask google-cloud-sdk)?", true)) {
+        await run("brew", ["install", "--cask", "google-cloud-sdk"]);
+      }
+      if (!commandExists("gcloud")) {
+        console.log(c.gray("  Or install with the official script (follow its prompts):"));
+        console.log(c.gray("    $ curl https://sdk.cloud.google.com | bash"));
+        if (await promptYesNo("Run the gcloud install script now?", true)) {
+          await run("sh", ["-c", "curl https://sdk.cloud.google.com | bash"]);
+        }
+      }
+      if (!commandExists("gcloud")) {
+        console.log(c.yellow("  gcloud still isn't on PATH — open a new terminal and re-run `whoop-mcp cloud`."));
+        return false;
+      }
+      return true;
+    },
+  },
+  {
+    label: "authenticated with Google",
+    check: () => capture("gcloud", ["auth", "list", "--filter=status:ACTIVE", "--format=value(account)"]).stdout.trim().length > 0,
+    ensure: async () => (await run("gcloud", ["auth", "login"])) === 0,
+  },
+  {
+    label: "GCP project selected",
+    check: () => { const p = capture("gcloud", ["config", "get-value", "project"]).stdout.trim(); return p.length > 0 && p !== "(unset)"; },
+    ensure: () => selectOrCreateGcpProject(),
+  },
+  {
+    label: "billing enabled (Cloud Run requires it)",
+    check: () => {
+      const p = capture("gcloud", ["config", "get-value", "project"]).stdout.trim();
+      const b = capture("gcloud", ["billing", "projects", "describe", p, "--format=value(billingEnabled)"]);
+      return b.code === 0 && /true/i.test(b.stdout);
+    },
+    ensure: async () => {
+      const p = capture("gcloud", ["config", "get-value", "project"]).stdout.trim();
+      console.log(c.yellow("  Cloud Run needs billing (the free tier still requires a card on file)."));
+      console.log(c.gray(`  Enable it: https://console.cloud.google.com/billing/linkedaccount?project=${p}`));
+      console.log(c.gray(`  Or: gcloud billing accounts list  →  gcloud billing projects link ${p} --billing-account=ACCT`));
+      await promptYesNo("Press Enter once billing is enabled", true);
+      return true;
+    },
+  },
+];
+
 // ── LOCAL flow ───────────────────────────────────────────────────────────────
 export async function runLocalSetup(root: string): Promise<number> {
   console.log(c.bold("\nwhoop-mcp · local setup") + c.gray(" — run the MCP on this machine over stdio\n"));
-  const TOTAL = 4;
+  const TOTAL = 3;
   const serverJs = resolve(root, "dist", "server.js");
 
   step(1, TOTAL, "Prerequisites");
-  console.log(`  node ${process.version} ${c.green("✓")}`);
-  if (!(await ensureDeps(root))) return 1;
+  if (!(await preflight([nodePrereq, depsPrereq(root), buildPrereq(root)]))) return 1;
 
   step(2, TOTAL, "Whoop authentication");
   if (!(await ensureAuth(root))) return 1;
   console.log(c.green("  ✓ tokens in .env"));
 
-  step(3, TOTAL, "Build");
-  if (existsSync(serverJs)) {
-    console.log(c.green("  ✓ already built (dist/)"));
-  } else {
-    const tsc = resolve(root, "node_modules", ".bin", "tsc");
-    if (!existsSync(tsc)) {
-      console.log(c.red("  No dist/ and no TypeScript compiler.") + c.gray(" Run `npm install && whoop-mcp build`."));
-      return 1;
-    }
-    const buildCode = await run(process.execPath, [tsc], { cwd: root });
-    if (buildCode !== 0) { console.log(c.red("  Build failed.")); return 1; }
-    console.log(c.green("  ✓ dist/ built"));
-  }
-
-  step(4, TOTAL, "Wire into your AI client");
+  step(3, TOTAL, "Wire into your AI client");
   const client = await promptChoice("Which client?", [
     "Claude Desktop (write config automatically)",
     "Claude Code (print the one-line command)",
@@ -200,7 +322,7 @@ interface DeployCtx {
 export async function runCloudSetup(root: string): Promise<number> {
   console.log(c.bold("\nwhoop-mcp · cloud setup") + c.gray(" — deploy a server + connect it to Claude (web, desktop, mobile)\n"));
   const TOTAL = 6;
-  if (!(await ensureDeps(root))) return 1;
+  if (!(await preflight([nodePrereq, depsPrereq(root)]))) return 1;
 
   step(1, TOTAL, "Whoop authentication");
   if (!(await ensureAuth(root))) return 1;
@@ -216,6 +338,15 @@ export async function runCloudSetup(root: string): Promise<number> {
   ]);
   const platforms = ["fly", "railway", "cloudrun", "custom"] as const;
   const platform = platforms[platformIdx]!;
+
+  // Per-host prerequisites (install the CLI, log in, and for gcloud pick/create a
+  // project + billing) — guided, auto-skipping whatever you already have, BEFORE
+  // we generate secrets or deploy. Returns to the main flow when satisfied.
+  const hostPrereqs = platform === "fly" ? flyPrereqs
+    : platform === "railway" ? railwayPrereqs
+    : platform === "cloudrun" ? gcloudPrereqs
+    : [];
+  if (hostPrereqs.length && !(await preflight(hostPrereqs))) return 1;
 
   step(3, TOTAL, "Generate secrets");
   const mcpToken = genToken();
@@ -330,19 +461,7 @@ function setSummary(env: Record<string, string>): void {
 
 // FLY — fully automated + tested.
 async function deployFly(ctx: DeployCtx): Promise<string | null> {
-  if (!commandExists("fly") && !commandExists("flyctl")) {
-    const installed = await ensureCli("flyctl", {
-      brewPkg: "flyctl",
-      scriptUrl: "https://fly.io/install.sh",
-      manualHint: "brew install flyctl  (or: curl -L https://fly.io/install.sh | sh)",
-    });
-    if (!installed) return null;
-  }
   const fly = commandExists("fly") ? "fly" : "flyctl";
-  if (capture(fly, ["auth", "whoami"]).code !== 0) {
-    console.log(c.gray("  Logging into Fly…"));
-    if (await run(fly, ["auth", "login"]) !== 0) return null;
-  }
   const url = `https://${ctx.appName}.fly.dev`;
   const env = { ...ctx.env, PUBLIC_URL: url };
 

@@ -140,26 +140,26 @@ export async function ensureCli(
 ): Promise<boolean> {
   if (commandExists(name)) return true;
   console.log(c.yellow(`  ${name} isn't installed.`));
-  let installCmd: [string, string[]] | null = null;
-  if (opts.brewPkg && commandExists("brew")) installCmd = ["brew", ["install", opts.brewPkg]];
-  else if (opts.npmPkg && commandExists("npm")) installCmd = ["npm", ["install", "-g", opts.npmPkg]];
-  else if (opts.scriptUrl) installCmd = ["sh", ["-c", `curl -fsSL ${opts.scriptUrl} | sh`]];
-  if (!installCmd) {
+  // Collect the install methods that are actually available and try them in
+  // order (brew → npm → script), falling THROUGH if one fails (e.g. a brew
+  // formula doesn't exist) instead of giving up after the first.
+  const methods: Array<[string, string[]]> = [];
+  if (opts.brewPkg && commandExists("brew")) methods.push(["brew", ["install", opts.brewPkg]]);
+  if (opts.npmPkg && commandExists("npm")) methods.push(["npm", ["install", "-g", opts.npmPkg]]);
+  if (opts.scriptUrl) methods.push(["sh", ["-c", `curl -fsSL ${opts.scriptUrl} | sh`]]);
+  if (methods.length === 0) {
     console.log(c.gray(`  Install it manually: ${opts.manualHint}`));
     return false;
   }
-  console.log(c.gray(`    $ ${installCmd[0]} ${installCmd[1].join(" ")}`));
-  if (!(await promptYesNo(`Install ${name} now?`, true))) {
-    console.log(c.gray(`  Skipped. Install manually: ${opts.manualHint}`));
-    return false;
-  }
-  if (await run(installCmd[0], installCmd[1]) !== 0) {
-    console.log(c.red(`  ${name} install failed.`) + c.gray(` Try manually: ${opts.manualHint}`));
-    return false;
+  for (const [cmd, args] of methods) {
+    console.log(c.gray(`    $ ${cmd} ${args.join(" ")}`));
+    if (!(await promptYesNo(`Install ${name} via \`${cmd}\`?`, true))) continue;
+    if ((await run(cmd, args)) === 0 && commandExists(name)) return true;
+    console.log(c.yellow(`  ${cmd} didn't get ${name} working${methods.length > 1 ? " — trying the next method" : ""}.`));
   }
   if (!commandExists(name)) {
-    console.log(c.yellow(`  ${name} installed, but isn't on this shell's PATH yet.`));
-    console.log(c.gray("  Open a new terminal and re-run this command to pick it up."));
+    console.log(c.yellow(`  ${name} still isn't on this shell's PATH.`));
+    console.log(c.gray(`  ${opts.manualHint} — or open a new terminal and re-run.`));
     return false;
   }
   return true;
